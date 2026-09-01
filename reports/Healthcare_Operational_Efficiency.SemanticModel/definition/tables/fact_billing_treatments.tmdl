@@ -1,0 +1,137 @@
+table fact_billing_treatments
+	lineageTag: 16de14ed-7650-49a7-82ba-c92315f8c73e
+
+	column bill_id
+		dataType: string
+		lineageTag: 045780b6-5707-4569-92ed-4f97eae73140
+		summarizeBy: none
+		sourceColumn: bill_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column patient_id
+		dataType: string
+		lineageTag: 0e8b72b1-104b-4089-8665-4c839d0343bc
+		summarizeBy: none
+		sourceColumn: patient_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column treatment_id
+		dataType: string
+		lineageTag: 03d60bfd-ed28-439c-aa81-1c91ebac3242
+		summarizeBy: none
+		sourceColumn: treatment_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column appointment_id
+		dataType: string
+		lineageTag: fdd0c4a9-1643-4432-a734-5bb52c0aefe5
+		summarizeBy: none
+		sourceColumn: appointment_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column doctor_id
+		dataType: string
+		lineageTag: 79dcf75d-e569-4f86-8735-34ff58113b66
+		summarizeBy: none
+		sourceColumn: doctor_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column hospital_branch
+		dataType: string
+		lineageTag: 294bf989-282a-419e-89ce-16ed1acfc14c
+		summarizeBy: none
+		sourceColumn: hospital_branch
+
+		annotation SummarizationSetBy = Automatic
+
+	column treatment_type
+		dataType: string
+		lineageTag: 7bdfc4c5-a2c3-41da-a6ee-63a524726837
+		summarizeBy: none
+		sourceColumn: treatment_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column date_key
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: e65b9a90-9e54-4e63-aaa3-ea9fc7349cfe
+		summarizeBy: none
+		sourceColumn: date_key
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column payment_method
+		dataType: string
+		lineageTag: 2830f80f-78ca-4f1c-9cfe-8709af54d5cc
+		summarizeBy: none
+		sourceColumn: payment_method
+
+		annotation SummarizationSetBy = Automatic
+
+	column payment_status
+		dataType: string
+		lineageTag: dd3573c9-6473-4b60-9d94-7b8486ad96ff
+		summarizeBy: none
+		sourceColumn: payment_status
+
+		annotation SummarizationSetBy = Automatic
+
+	column billed_amount
+		dataType: double
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: bcfec777-b1db-42b5-a07b-b006455c98b5
+		summarizeBy: sum
+		sourceColumn: billed_amount
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	column treatment_cost
+		dataType: double
+		lineageTag: 1cbefb86-bd6d-4b63-affc-b807151a7af1
+		summarizeBy: sum
+		sourceColumn: treatment_cost
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column revenue_variance
+		dataType: int64
+		formatString: 0
+		lineageTag: f0e5b5d2-597a-452c-8880-2ff4213916fc
+		summarizeBy: sum
+		sourceColumn: revenue_variance
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_paid
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: a69d3848-60cf-417e-a416-15ef53702902
+		summarizeBy: none
+		sourceColumn: is_paid
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fact_billing_treatments = m
+		mode: import
+		source =
+				let
+				    Source = Python.Execute("import pandas as pd#(lf)#(lf)base = r""F:\Data Engineer\healthcare-analytics-lakehouse\output""#(lf)#(lf)# Loading Dimension Tables#(lf)dim_patients = pd.read_parquet(f""{base}\\dim_patients\\dim_patients.parquet"")#(lf)dim_doctors = pd.read_parquet(f""{base}\\dim_doctors\\dim_doctors.parquet"")#(lf)dim_treatments = pd.read_parquet(f""{base}\\dim_treatments\\dim_treatments.parquet"")#(lf)dim_date = pd.read_parquet(f""{base}\\dim_date\\dim_date.parquet"")#(lf)#(lf)# Loading Fact Tables#(lf)fact_appointments = pd.read_parquet(f""{base}\\fact_appointments\\fact_appointments.parquet"")#(lf)fact_billing_treatments = pd.read_parquet(f""{base}\\fact_billing_treatments\\fact_billing_treatments.parquet"")#(lf)#(lf)# Verify columns including the newly denormalized fields#(lf)print(""Fact Billing Treatments Columns:"", fact_billing_treatments.columns.tolist())"),
+				    fact_billing_treatments1 = Source{[Name="fact_billing_treatments"]}[Value],
+				    #"Changed Type" = Table.TransformColumnTypes(fact_billing_treatments1,{{"bill_id", type text}, {"patient_id", type text}, {"treatment_id", type text}, {"appointment_id", type text}, {"doctor_id", type text}, {"hospital_branch", type text}, {"treatment_type", type text}, {"date_key", type date}, {"payment_method", type text}, {"payment_status", type text}, {"billed_amount", type number}, {"treatment_cost", type number}, {"revenue_variance", Int64.Type}, {"is_paid", type logical}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

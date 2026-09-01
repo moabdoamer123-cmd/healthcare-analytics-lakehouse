@@ -1,0 +1,73 @@
+table dim_treatments
+	lineageTag: 1ab811b1-cb39-442f-bfeb-10462868de6d
+
+	column treatment_id
+		dataType: string
+		lineageTag: 394d85ae-e7bb-4707-ba78-395270c94335
+		summarizeBy: none
+		sourceColumn: treatment_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column appointment_id
+		dataType: string
+		lineageTag: 86219f32-e09b-4010-9aab-71f921c177ee
+		summarizeBy: none
+		sourceColumn: appointment_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column treatment_type
+		dataType: string
+		lineageTag: e763c213-4528-4d3f-812b-d4d885561647
+		summarizeBy: none
+		sourceColumn: treatment_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column description
+		dataType: string
+		lineageTag: c2319c3a-aeda-424e-befa-3a79cc7aac29
+		summarizeBy: none
+		sourceColumn: description
+
+		annotation SummarizationSetBy = Automatic
+
+	column cost
+		dataType: double
+		lineageTag: 0ffe50bf-2263-4d67-a765-e5123e08782b
+		summarizeBy: sum
+		sourceColumn: cost
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column treatment_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 6fc17940-a5a0-46e0-b2d3-6ba625d1367e
+		summarizeBy: none
+		sourceColumn: treatment_date
+
+		variation Variation
+			isDefault
+			relationship: f2ec4eb9-01c9-49e4-aa80-d58b73af6157
+			defaultHierarchy: LocalDateTable_c7e4cd3e-0b5a-462a-8d80-e120123e9741.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	partition dim_treatments = m
+		mode: import
+		source =
+				let
+				    Source = Python.Execute("import pandas as pd#(lf)#(lf)base = r""F:\Data Engineer\healthcare-analytics-lakehouse\output""#(lf)#(lf)# Loading Dimension Tables#(lf)dim_patients = pd.read_parquet(f""{base}\\dim_patients\\dim_patients.parquet"")#(lf)dim_doctors = pd.read_parquet(f""{base}\\dim_doctors\\dim_doctors.parquet"")#(lf)dim_treatments = pd.read_parquet(f""{base}\\dim_treatments\\dim_treatments.parquet"")#(lf)dim_date = pd.read_parquet(f""{base}\\dim_date\\dim_date.parquet"")#(lf)#(lf)# Loading Fact Tables#(lf)fact_appointments = pd.read_parquet(f""{base}\\fact_appointments\\fact_appointments.parquet"")#(lf)fact_billing_treatments = pd.read_parquet(f""{base}\\fact_billing_treatments\\fact_billing_treatments.parquet"")#(lf)#(lf)# Verify columns including the newly denormalized fields#(lf)print(""Fact Billing Treatments Columns:"", fact_billing_treatments.columns.tolist())"),
+				    dim_treatments1 = Source{[Name="dim_treatments"]}[Value],
+				    #"Changed Type" = Table.TransformColumnTypes(dim_treatments1,{{"treatment_id", type text}, {"appointment_id", type text}, {"treatment_type", type text}, {"description", type text}, {"cost", type number}, {"treatment_date", type date}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

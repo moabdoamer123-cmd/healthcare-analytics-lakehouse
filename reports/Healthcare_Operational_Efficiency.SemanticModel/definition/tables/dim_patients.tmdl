@@ -1,0 +1,137 @@
+table dim_patients
+	lineageTag: bafb91fd-8eed-4247-ab91-862b341e9449
+
+	column patient_id
+		dataType: string
+		lineageTag: f4978d6a-18fd-4829-b6c2-970caad19ba2
+		summarizeBy: none
+		sourceColumn: patient_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column first_name
+		dataType: string
+		lineageTag: 0ce04dda-c9ed-4ace-806a-c78184eddfef
+		summarizeBy: none
+		sourceColumn: first_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column last_name
+		dataType: string
+		lineageTag: e856954b-9020-4147-b656-25c2b5548222
+		summarizeBy: none
+		sourceColumn: last_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column gender
+		dataType: string
+		lineageTag: d090f131-6d9f-4ab4-bde7-89ad94219d00
+		summarizeBy: none
+		sourceColumn: gender
+
+		annotation SummarizationSetBy = Automatic
+
+	column date_of_birth
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: dd39c817-edd0-4ac8-8317-ee877fa7650a
+		summarizeBy: none
+		sourceColumn: date_of_birth
+
+		variation Variation
+			isDefault
+			relationship: 2b6516d5-8773-4ff2-b971-64a84a440e2d
+			defaultHierarchy: LocalDateTable_4c256c9a-026c-4c52-810b-c38946956b26.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column age
+		dataType: int64
+		formatString: 0
+		lineageTag: ec8cab00-5c4f-41a6-b439-da063885ccb6
+		summarizeBy: sum
+		sourceColumn: age
+
+		annotation SummarizationSetBy = Automatic
+
+	column age_group
+		dataType: string
+		lineageTag: e79a12fb-5946-4b16-81f1-0c574b672056
+		summarizeBy: none
+		sourceColumn: age_group
+
+		annotation SummarizationSetBy = Automatic
+
+	column contact_number
+		dataType: int64
+		formatString: 0
+		lineageTag: e6a9e4e3-6d5e-4d9b-b77a-b2f43f0e9db7
+		summarizeBy: sum
+		sourceColumn: contact_number
+
+		annotation SummarizationSetBy = Automatic
+
+	column address
+		dataType: string
+		lineageTag: 298402a1-b88b-4c30-a178-b5cf7e501126
+		summarizeBy: none
+		sourceColumn: address
+
+		annotation SummarizationSetBy = Automatic
+
+	column email
+		dataType: string
+		lineageTag: c2355950-3bcf-4e5a-a089-2646cece0029
+		summarizeBy: none
+		sourceColumn: email
+
+		annotation SummarizationSetBy = Automatic
+
+	column insurance_provider
+		dataType: string
+		lineageTag: 4fa95462-8917-4741-b0b1-6f24a5688ad6
+		summarizeBy: none
+		sourceColumn: insurance_provider
+
+		annotation SummarizationSetBy = Automatic
+
+	column insurance_number
+		dataType: string
+		lineageTag: 9b9beba8-0585-4798-8846-22fa0c34cd89
+		summarizeBy: none
+		sourceColumn: insurance_number
+
+		annotation SummarizationSetBy = Automatic
+
+	column registration_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 1aea4ef8-b850-4e1b-8136-8dbd9fb974c8
+		summarizeBy: none
+		sourceColumn: registration_date
+
+		variation Variation
+			isDefault
+			relationship: 78a1cb42-f664-4265-a6dd-8e915e8ad2b9
+			defaultHierarchy: LocalDateTable_60876d2c-8970-4f9b-9395-a7a87aceeb46.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	partition dim_patients = m
+		mode: import
+		source =
+				let
+				    Source = Python.Execute("import pandas as pd#(lf)#(lf)base = r""F:\Data Engineer\healthcare-analytics-lakehouse\output""#(lf)#(lf)# Loading Dimension Tables#(lf)dim_patients = pd.read_parquet(f""{base}\\dim_patients\\dim_patients.parquet"")#(lf)dim_doctors = pd.read_parquet(f""{base}\\dim_doctors\\dim_doctors.parquet"")#(lf)dim_treatments = pd.read_parquet(f""{base}\\dim_treatments\\dim_treatments.parquet"")#(lf)dim_date = pd.read_parquet(f""{base}\\dim_date\\dim_date.parquet"")#(lf)#(lf)# Loading Fact Tables#(lf)fact_appointments = pd.read_parquet(f""{base}\\fact_appointments\\fact_appointments.parquet"")#(lf)fact_billing_treatments = pd.read_parquet(f""{base}\\fact_billing_treatments\\fact_billing_treatments.parquet"")#(lf)#(lf)# Verify columns including the newly denormalized fields#(lf)print(""Fact Billing Treatments Columns:"", fact_billing_treatments.columns.tolist())"),
+				    dim_patients1 = Source{[Name="dim_patients"]}[Value],
+				    #"Changed Type" = Table.TransformColumnTypes(dim_patients1,{{"patient_id", type text}, {"first_name", type text}, {"last_name", type text}, {"gender", type text}, {"date_of_birth", type date}, {"age", Int64.Type}, {"age_group", type text}, {"contact_number", Int64.Type}, {"address", type text}, {"email", type text}, {"insurance_provider", type text}, {"insurance_number", type text}, {"registration_date", type date}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

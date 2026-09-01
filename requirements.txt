@@ -1,0 +1,5 @@
+pyspark==3.4.1
+psycopg2-binary
+minio
+requests
+python-dotenv

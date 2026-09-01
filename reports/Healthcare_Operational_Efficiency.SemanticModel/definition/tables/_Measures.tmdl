@@ -1,0 +1,100 @@
+table _Measures
+	lineageTag: debcf92a-6cf7-4331-9255-63633cd5c4d1
+
+	measure 'Total Billed Revenue' = SUM(fact_billing_treatments[billed_amount])
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: ed313850-d17b-42f7-8a49-54deae432e91
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Collection Rate %' =
+			
+			DIVIDE(
+			    CALCULATE(SUM(fact_billing_treatments[billed_amount]), fact_billing_treatments[is_paid] = TRUE()),
+			    SUM(fact_billing_treatments[billed_amount]),
+			    0
+			)
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: b15decc1-6a2c-41d1-9119-030393dd6108
+
+	measure 'Total Appointments' = COUNT(fact_appointments[appointment_id])
+		formatString: 0
+		lineageTag: 180c8885-56bf-4ad2-8704-4412e3299fb9
+
+	measure 'Total Treatment Cost' = SUM(fact_billing_treatments[treatment_cost])
+		formatString: \$#,0.0;(\$#,0.0);\$#,0.0
+		lineageTag: 4fc06ec3-6799-44e1-9bc8-928acb52f7a6
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'No-Show Rate %' = ```
+			
+			VAR TotalAppointments = COUNT ( fact_appointments[appointment_id] )
+			VAR NoShowAppointments = 
+			    CALCULATE (
+			        COUNT ( fact_appointments[appointment_id] ),
+			        LOWER ( fact_appointments[is_noshow] ) = "true"
+			    )
+			RETURN
+			    DIVIDE ( NoShowAppointments, TotalAppointments, 0 )
+			```
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: b781b8a5-1380-4b78-a483-15a653ec37ef
+
+	measure 'Total Billed Amount' =
+			
+			SUM ( 'fact_billing_treatments'[billed_amount] )
+		formatString: \$#,0.0;(\$#,0.0);\$#,0.0
+		lineageTag: d39aead5-60da-47fd-8f5e-7cd0e78dde1d
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Financial Variance' =
+			
+			[Total Billed Amount] - [Total Treatment Cost]
+		formatString: \$#,0.0;(\$#,0.0);\$#,0.0
+		lineageTag: d219e072-7ca8-4de1-883b-7f8c20f6497c
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Pending Invoices Amount' =
+			
+			CALCULATE (
+			    [Total Billed Amount],
+			    'fact_billing_treatments'[payment_status] IN { "Pending", "Unpaid" }
+			)
+		formatString: \$#,0.0;(\$#,0.0);\$#,0.0
+		lineageTag: 810a495e-34b8-4fb8-82b4-9e724f4df902
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Active Doctors Count' =
+			
+			DISTINCTCOUNT ( 'fact_billing_treatments'[doctor_id] )
+		formatString: 0
+		lineageTag: 3a635a4a-de80-4bf8-98db-2ca87c0a4c98
+
+	measure 'Avg Billed per Appointment' =
+			
+			DIVIDE (
+			    SUM ( 'fact_billing_treatments'[billed_amount] ),
+			    COUNT ( 'fact_appointments'[appointment_id] ),
+			    0
+			)
+		formatString: \$#,0.0;(\$#,0.0);\$#,0.0
+		lineageTag: 203906d1-ef09-4be9-a1fb-1de2cd72a630
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	partition _Measures = m
+		mode: import
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}}),
+				    #"Removed Columns" = Table.RemoveColumns(#"Changed Type",{"Column1"})
+				in
+				    #"Removed Columns"
+
+	annotation PBI_ResultType = Table
+

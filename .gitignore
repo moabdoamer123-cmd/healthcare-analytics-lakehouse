@@ -1,0 +1,28 @@
+# Environment Variables & Credentials
+.env
+*.env
+
+# Python Cache & Virtual Environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Airflow Logs & Output Data
+logs/
+output/
+tmp/
+gold_export/
+
+# Power BI Files & Cache
+**/.pbi/localSettings.json
+**/.pbi/cache.abf
+*.pbix
+
+# OS & Editor Specific
+.DS_Store
+.vscode/
+.idea/
