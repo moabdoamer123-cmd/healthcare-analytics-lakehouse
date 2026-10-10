@@ -1,151 +1,164 @@
-x-airflow-common:
-  &airflow-common
-  build: .
-  environment:
-    # FIX: SequentialExecutor + SQLite only ever runs one task at a time
-    # and is prone to "database is locked" errors, especially on Windows.
-    # LocalExecutor (below) needs a real database — that's what the new
-    # `postgres` service is for.
-    - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-    - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
-    # FIX: was a broken 37-character string — a valid Fernet key is 44
-    # characters. Generate your own (command below) and put it in .env as
-    # AIRFLOW_FERNET_KEY — never hardcode it directly in this file.
-    - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
-    - AIRFLOW__CORE__LOAD_EXAMPLES=False
-    - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=False
-    - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
-    # Dynamic Environment Variables passed from .env
-    - NEON_HOST=${NEON_HOST}
-    - NEON_PORT=${NEON_PORT}
-    - NEON_DB=${NEON_DB}
-    - NEON_USER=${NEON_USER}
-    - NEON_PASSWORD=${NEON_PASSWORD}
-    # IMPORTANT: if MinIO runs directly on your Windows host (not as a
-    # container on this same compose network), MINIO_ENDPOINT in your .env
-    # must be http://host.docker.internal:9000 — NOT http://localhost:9000.
-    # "localhost" inside this container means the container itself, which
-    # has no MinIO running on it, so every s3a:// call would fail to connect.
-    - MINIO_ENDPOINT=${MINIO_ENDPOINT}
-    - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-    - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-    - POWERBI_DATASET_ID=${POWERBI_DATASET_ID}
-    - POWERBI_WORKSPACE_ID=${POWERBI_WORKSPACE_ID}
-    - POWERBI_CLIENT_ID=${POWERBI_CLIENT_ID}
-    - POWERBI_CLIENT_SECRET=${POWERBI_CLIENT_SECRET}
-    - POWERBI_TENANT_ID=${POWERBI_TENANT_ID}
-    
-
-    - AIRFLOW__SMTP__SMTP_HOST=${SMTP_HOST}
-    - AIRFLOW__SMTP__SMTP_STARTTLS=True
-    - AIRFLOW__SMTP__SMTP_SSL=False
-    - AIRFLOW__SMTP__SMTP_USER=${SMTP_USER}
-    - AIRFLOW__SMTP__SMTP_PASSWORD=${SMTP_PASSWORD}
-    - AIRFLOW__SMTP__SMTP_PORT=${SMTP_PORT}
-    - AIRFLOW__SMTP__SMTP_MAIL_FROM=${SMTP_MAIL_FROM}
-    - GOLD_LOCAL_EXPORT_DIR=/opt/airflow/output
-  volumes:
-    - ./dags:/opt/airflow/dags
-    - ./scripts:/opt/airflow/scripts
-    - ./eda:/opt/airflow/eda
-    - ./logs:/opt/airflow/logs
-    - ./output:/opt/airflow/output
-  user: "${AIRFLOW_UID:-50000}:0"
-  depends_on:
-    &airflow-common-depends-on
-    postgres:
-      condition: service_healthy
-    minio:
-      condition: service_healthy
-
-services:
-  postgres:
-    image: postgres:15
-    container_name: hmd_lakehouse_airflow_db
+  x-airflow-common:
+    &airflow-common
+    build: .
     environment:
-      - POSTGRES_USER=airflow
-      - POSTGRES_PASSWORD=airflow
-      - POSTGRES_DB=airflow
-    volumes:
-      - postgres-db-volume:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "airflow"]
-      interval: 5s
-      retries: 5
-    restart: always
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
   
-  minio:
-    image: minio/minio:latest
-    container_name: hmd_lakehouse_minio
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
-    command: server /data --address ":9000" --console-address ":9001"
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=False
+      - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
+    
+      - NEON_HOST=${NEON_HOST}
+      - NEON_PORT=${NEON_PORT}
+      - NEON_DB=${NEON_DB}
+      - NEON_USER=${NEON_USER}
+      - NEON_PASSWORD=${NEON_PASSWORD}
+  
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - POWERBI_DATASET_ID=${POWERBI_DATASET_ID}
+      - POWERBI_WORKSPACE_ID=${POWERBI_WORKSPACE_ID}
+      - POWERBI_CLIENT_ID=${POWERBI_CLIENT_ID}
+      - POWERBI_CLIENT_SECRET=${POWERBI_CLIENT_SECRET}
+      - POWERBI_TENANT_ID=${POWERBI_TENANT_ID}
+      
+
+      - AIRFLOW__SMTP__SMTP_HOST=${SMTP_HOST}
+      - AIRFLOW__SMTP__SMTP_STARTTLS=True
+      - AIRFLOW__SMTP__SMTP_SSL=False
+      - AIRFLOW__SMTP__SMTP_USER=${SMTP_USER}
+      - AIRFLOW__SMTP__SMTP_PASSWORD=${SMTP_PASSWORD}
+      - AIRFLOW__SMTP__SMTP_PORT=${SMTP_PORT}
+      - AIRFLOW__SMTP__SMTP_MAIL_FROM=${SMTP_MAIL_FROM}
+      - GOLD_LOCAL_EXPORT_DIR=/opt/airflow/output
+      
     volumes:
-      - minio-storage:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 5s
-      retries: 5
-    restart: always
-
-  # FIX: this service was completely missing. Without it, the metadata DB
-  # schema is never created and no admin user exists — the webserver and
-  # scheduler would crash-loop on first startup. This runs once, migrates
-  # the DB, creates the admin login, then exits successfully.
-  airflow-init:
-    <<: *airflow-common
-    container_name: hmd_lakehouse_airflow_init
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts
+      - ./eda:/opt/airflow/eda
+      - ./logs:/opt/airflow/logs
+      - ./output:/opt/airflow/output
+      
+    user: "${AIRFLOW_UID:-50000}:0"
     depends_on:
-      <<: *airflow-common-depends-on
-    entrypoint: /bin/bash
-    command:
-      - -c
-      - |
-        airflow db migrate
-        airflow users create \
-          --username admin \
-          --firstname Admin \
-          --lastname User \
-          --role Admin \
-          --email admin@example.com \
-          --password admin
-    restart: on-failure
+      &airflow-common-depends-on
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
-  airflow-webserver:
-    <<: *airflow-common
-    command: webserver
-    container_name: hmd_lakehouse_webserver
-    ports:
-      - "${AIRFLOW_PORT:-8082}:8080"
-    healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-    depends_on:
-      <<: *airflow-common-depends-on
-      airflow-init:
-        condition: service_completed_successfully
-    restart: always
+  services:
+    postgres:
+      image: postgres:15
+      container_name: hmd_lakehouse_airflow_db
+      environment:
+        - POSTGRES_USER=${POSTGRES_USER}
+        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        - POSTGRES_DB=${POSTGRES_DB}
+      volumes:
+        - postgres-db-volume:/var/lib/postgresql/data
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+        interval: 5s
+        retries: 5
+      restart: always
 
-  airflow-scheduler:
-    <<: *airflow-common
-    command: scheduler
-    container_name: hmd_lakehouse_scheduler
-    depends_on:
-      <<: *airflow-common-depends-on
-      airflow-init:
-        condition: service_completed_successfully
-    restart: always
+    redis:
+      image: redis:7.0-alpine
+      container_name: hmd_lakehouse_redis
+      ports:
+        - "6379:6379"
+      healthcheck:
+        test: ["CMD", "redis-cli", "ping"]
+        interval: 5s
+        retries: 5
+      restart: always
+    
+    minio:
+      image: minio/minio:latest
+      container_name: hmd_lakehouse_minio
+      ports:
+        - "9000:9000"
+        - "9001:9001"
+      environment:
+        - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
+        - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
+      command: server /data --address ":9000" --console-address ":9001"
+      volumes:
+        - minio-storage:/data
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+        interval: 5s
+        retries: 5
+      restart: always
 
-volumes:
-  postgres-db-volume:
-  minio-storage:
+    airflow-init:
+      <<: *airflow-common
+      container_name: hmd_lakehouse_airflow_init
+      depends_on:
+        <<: *airflow-common-depends-on
+      entrypoint: /bin/bash
+      command:
+        - -c
+        - |
+          airflow db migrate
+          airflow users create \
+            --username admin \
+            --firstname Admin \
+            --lastname User \
+            --role Admin \
+            --email admin@example.com \
+            --password admin
+      restart: on-failure
 
-networks:
-  default:
-    name: hmd_lakehouse_network
+    airflow-webserver:
+      <<: *airflow-common
+      command: webserver
+      container_name: hmd_lakehouse_webserver
+      ports:
+        - "${AIRFLOW_PORT:-8082}:8080"
+      healthcheck:
+        test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+        interval: 10s
+        timeout: 10s
+        retries: 5
+      depends_on:
+        <<: *airflow-common-depends-on
+        airflow-init:
+          condition: service_completed_successfully
+      restart: always
+
+    airflow-scheduler:
+      <<: *airflow-common
+      command: scheduler
+      container_name: hmd_lakehouse_scheduler
+      depends_on:
+        <<: *airflow-common-depends-on
+        airflow-init:
+          condition: service_completed_successfully
+      restart: always
+    
+    airflow-worker:
+      <<: *airflow-common
+      command: bash -c "rm -f /opt/airflow/airflow-worker.pid && exec airflow celery worker"
+      container_name: hmd_lakehouse_worker
+      depends_on:
+        <<: *airflow-common-depends-on
+        airflow-init:
+          condition: service_completed_successfully
+      restart: always
+
+  volumes:
+    postgres-db-volume:
+    minio-storage:
+
+  networks:
+    default:
+      name: hmd_lakehouse_network

@@ -2,11 +2,11 @@
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.12.0/schema.json",
   "name": "89214d91388b9ea93d01",
   "position": {
-    "x": 1486.6666666666665,
-    "y": 216.66666666666666,
+    "x": 1435,
+    "y": 195,
     "z": 3000,
-    "height": 280,
-    "width": 280,
+    "height": 170,
+    "width": 445,
     "tabOrder": 3000
   },
   "visual": {
@@ -23,11 +23,11 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Pending Invoices Amount"
+                  "Property": "Outstanding Invoices Amount"
                 }
               },
-              "queryRef": "_Measures.Pending Invoices Amount",
-              "nativeQueryRef": "Pending Invoices Amount"
+              "queryRef": "_Measures.Outstanding Invoices Amount",
+              "nativeQueryRef": "Outstanding Invoices Amount"
             }
           ]
         }
@@ -42,7 +42,7 @@
                     "Entity": "_Measures"
                   }
                 },
-                "Property": "Pending Invoices Amount"
+                "Property": "Outstanding Invoices Amount"
               }
             },
             "direction": "Descending"
@@ -60,7 +60,7 @@
                 "color": {
                   "expr": {
                     "Literal": {
-                      "Value": "'#0F766E'"
+                      "Value": "'#DC2626'"
                     }
                   }
                 }
@@ -91,7 +91,7 @@
                 "color": {
                   "expr": {
                     "Literal": {
-                      "Value": "'#0F766E'"
+                      "Value": "'#64748B'"
                     }
                   }
                 }
@@ -100,7 +100,7 @@
             "show": {
               "expr": {
                 "Literal": {
-                  "Value": "false"
+                  "Value": "true"
                 }
               }
             },
@@ -121,7 +121,7 @@
             "fontSize": {
               "expr": {
                 "Literal": {
-                  "Value": "14D"
+                  "Value": "12D"
                 }
               }
             }

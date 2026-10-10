@@ -21,9 +21,9 @@ default_args = {
     "retry_exponential_backoff": True,
     "max_retry_delay": timedelta(minutes=5),
 }
-# -----------------------------------------------------------------------------
+
 # Python Callables for Lightweight Checks & API Triggers
-# -----------------------------------------------------------------------------
+
 def run_pre_run_checks():
     """
     Requirement Task 1: 'Verify Neon Postgres connectivity, MinIO server
@@ -134,9 +134,9 @@ def trigger_power_bi_refresh():
     print("✅ Power BI Semantic Model refresh triggered successfully!")
 
 
-# -----------------------------------------------------------------------------
+
 # DAG Pipeline Definition
-# -----------------------------------------------------------------------------
+
 with DAG(
     dag_id="hmd_medallion_etl_pipeline",
     default_args=default_args,
@@ -159,8 +159,6 @@ with DAG(
     )
 
     # Task 3: Data Quality Rules (Bronze -> Silver & Quarantine)
-    # FIX: filename now matches the actual script (was
-    # "02_silver_transformation.py", a file that doesn't exist).
     t3_data_quality_rules = BashOperator(
         task_id="data_quality_rules",
         bash_command="python /opt/airflow/scripts/02_silver_ingestion.py",
@@ -173,12 +171,6 @@ with DAG(
     )
 
     # Task 5: Reconciliation Checks
-    # FIX: this used to be a hardcoded `echo` that always printed success
-    # no matter what — it now actually runs the real reconciliation script,
-    # which raises (and therefore fails this task) if anything doesn't
-    # add up. Because tasks are chained with `>>` and the default trigger
-    # rule is all_success, a failure here correctly blocks Task 6 below —
-    # Power BI never refreshes on data that failed reconciliation.
     t5_reconciliation_checks = BashOperator(
         task_id="reconciliation_checks",
         bash_command="python /opt/airflow/scripts/04_reconciliation_checks.py",
@@ -190,9 +182,9 @@ with DAG(
         python_callable=trigger_power_bi_refresh,
     )
 
-    # -----------------------------------------------------------------------------
+
     # Execution Order
-    # -----------------------------------------------------------------------------
+  
     (
         t1_pre_run_check
         >> t2_pyspark_extraction

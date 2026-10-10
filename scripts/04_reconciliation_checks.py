@@ -3,9 +3,9 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import DecimalType
 
-# ==========================================
+
 # 1. Spark Session Configuration
-# ==========================================
+
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "admin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "password123")
@@ -23,9 +23,6 @@ PK_COLUMNS = {
     "billing": "bill_id",
 }
 
-# Collected across the whole run; the script exits non-zero if anything
-# lands in here, so Airflow (Requirement 4) sees a real failure instead of
-# a script that always prints "Completed Successfully".
 CHECKS_FAILED = []
 
 
@@ -51,7 +48,7 @@ def create_spark_session():
 
 
 def safe_read_parquet(spark, path):
-    """Returns None if the path doesn't exist yet (e.g. a table that never had any quarantined rows)."""
+
     try:
         return spark.read.parquet(path)
     except Exception:
@@ -65,24 +62,10 @@ def check(label, passed, detail):
         CHECKS_FAILED.append(label)
 
 
-# ==========================================
 # 2. Bronze -> Silver checks (quarantine expected)
-# ==========================================
-def row_count_check(spark, table_name):
-    """
-    RAW bronze (every historical ingestion copy, duplicates included) must
-    equal silver + quarantine, exactly.
 
-    FIX: this used to dedup bronze first via dedup_bronze() before
-    comparing. That's wrong — Silver's own apply_dq_gateway() is what
-    performs the "keep latest per PK" dedup, and it explicitly routes the
-    older duplicate copies into quarantine as duplicate_primary_key rows.
-    That means silver + quarantine together already reconstruct the FULL
-    raw Bronze row count (valid latest rows + rejected older duplicates).
-    Deduping bronze here first double-removes those same duplicate rows,
-    which made this check fail by design any time Bronze had ever been
-    re-ingested more than once — even though nothing was actually wrong.
-    """
+def row_count_check(spark, table_name):
+
     bronze_count = spark.read.parquet(f"{BRONZE_BASE}/{table_name}").count()
 
     silver_count = spark.read.parquet(f"{SILVER_BASE}/{table_name}").count()
@@ -111,8 +94,7 @@ def financial_sum_check(spark, table_name, amount_col):
 
     quarantine_df = safe_read_parquet(spark, f"{QUARANTINE_BASE}/{table_name}")
     if quarantine_df is not None:
-        # Quarantined rows may still have the raw quoted string, or already
-        # be typed depending on which rule rejected them — cast defensively.
+  
         quarantine_total = (
             quarantine_df.withColumn(
                 amount_col, F.regexp_replace(F.col(amount_col).cast("string"), '"', "").cast(DecimalType(10, 2))
@@ -132,9 +114,8 @@ def financial_sum_check(spark, table_name, amount_col):
     )
 
 
-# ==========================================
 # 3. Silver -> Gold checks (lossless join, zero tolerance)
-# ==========================================
+
 def silver_to_gold_row_count_check(spark, silver_table, gold_table, silver_count=None):
     """
     No quarantine step exists between Silver and Gold — Gold is built from
@@ -189,9 +170,9 @@ def revenue_variance_sanity_check(spark):
     )
 
 
-# ==========================================
+
 # 4. Execution
-# ==========================================
+
 def run_end_to_end_reconciliation():
     spark = create_spark_session()
     spark.sparkContext.setLogLevel("WARN")
@@ -201,8 +182,7 @@ def run_end_to_end_reconciliation():
     silver_counts = {t: row_count_check(spark, t) for t in PK_COLUMNS}
 
     print("\n--- Stage 1: Bronze -> Silver (financial sums) ---")
-    # FIX: the original script only checked billing. treatments.cost feeds
-    # revenue_variance directly, so it needs the same guarantee.
+
     financial_sum_check(spark, "treatments", "cost")
     financial_sum_check(spark, "billing", "amount")
 
@@ -214,9 +194,7 @@ def run_end_to_end_reconciliation():
     silver_to_gold_row_count_check(spark, "billing", "fact_billing_treatments", silver_counts["billing"])
 
     print("\n--- Stage 2: Silver -> Gold (financial sums) ---")
-    # FIX: correct table/column names — the original script pointed at
-    # "fact_billing" / "amount", neither of which exist in the real Gold
-    # schema (it's "fact_billing_treatments" / "billed_amount").
+
     silver_to_gold_financial_check(spark, "treatments", "cost", "dim_treatments", "cost")
     silver_to_gold_financial_check(spark, "billing", "amount", "fact_billing_treatments", "billed_amount")
 
@@ -230,10 +208,7 @@ def run_end_to_end_reconciliation():
             print(f"   - {c}")
         print("=" * 60)
         spark.stop()
-        # FIX: the original script printed a warning but always finished
-        # with "Completed Successfully" regardless of the outcome. Raising
-        # here is what actually makes this task fail in Airflow when data
-        # doesn't reconcile.
+
         raise ValueError("End-to-end reconciliation failed — see failed checks above.")
 
     print("✅ END-TO-END RECONCILIATION CHECKS COMPLETED SUCCESSFULLY — zero silent data loss confirmed.")

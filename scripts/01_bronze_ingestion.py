@@ -2,12 +2,9 @@ import os
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import current_timestamp, lit, year, month, dayofmonth, col
 
-# ==========================================
+
 # 1. Configuration Credentials
-# ==========================================
-# Pull from environment variables when available; the fallback values are
-# only for local convenience. Rotate the Neon password and move these to a
-# .env file / real env vars before this project goes anywhere near git.
+
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "admin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "password123")
@@ -20,16 +17,15 @@ NEON_DB = os.getenv("NEON_DB", "neondb")
 NEON_USER = os.getenv("NEON_USER", "neondb_owner")
 NEON_PASSWORD = os.getenv("NEON_PASSWORD", "npg_nf0Bpoz8SKtF")
 
-# Schema in Neon is literally "HMD" (uppercase, quoted at creation time) —
-# always quote it in raw SQL so Postgres matches it exactly.
+
 SCHEMA_NAME = "HMD"
 
-# FIX #1: bucket name must match Requirement 1 exactly -> hmd-lakehouse
+
 BRONZE_BUCKET_PATH = "s3a://hmd-lakehouse/bronze"
 
-# ==========================================
+
 # 2. Initialize Spark Session
-# ==========================================
+
 spark = (
     SparkSession.builder.appName("HMD_Bronze_Ingestion")
     .config(
@@ -54,9 +50,9 @@ jdbc_url = f"jdbc:postgresql://{NEON_HOST}:{NEON_PORT}/{NEON_DB}?sslmode=require
 tables = ["patients", "doctors", "appointments", "treatments", "billing"]
 results = {}
 
-# ==========================================
+
 # 3. Extract & Write to MinIO Bronze Bucket
-# ==========================================
+
 for table in tables:
     print(f"\n📥 Extracting \"{SCHEMA_NAME}\".{table} from Neon Postgres...")
     try:
@@ -71,9 +67,6 @@ for table in tables:
             .load()
         )
 
-        # FIX #2: real partition columns (not just a timestamp value inside
-        # the rows). These become actual folder levels on write, e.g.
-        # bronze/patients/ingestion_year=2026/ingestion_month=08/ingestion_day=25/
         ingestion_ts_col = current_timestamp()
         bronze_df = (
             df.withColumn("_ingested_at", ingestion_ts_col)
@@ -86,12 +79,6 @@ for table in tables:
         target_path = f"{BRONZE_BUCKET_PATH}/{table}"
         print(f"💾 Writing raw parquet data to -> {target_path} (partitioned)...")
 
-        # FIX #3: append, not overwrite. Bronze must preserve full ingestion
-        # audit history — overwrite would destroy every prior run's data.
-        # Because we partition by ingestion_year/month/day, each run lands
-        # in its own new partition folder, so append never duplicates or
-        # clobbers a previous day's data; re-running on the SAME day will
-        # add to that day's partition, which is expected for re-runs.
         (
             bronze_df.write.format("parquet")
             .mode("append")
@@ -104,14 +91,13 @@ for table in tables:
         results[table] = f"OK ({row_count} rows)"
 
     except Exception as e:
-        # FIX #4: don't let one failing table kill the whole ingestion run —
-        # log it, keep going, and report everything at the end.
+       
         print(f"❌ Failed to ingest \"{SCHEMA_NAME}\".{table}: {e}")
         results[table] = "FAILED"
 
-# ==========================================
+
 # 4. Summary
-# ==========================================
+
 print("\n" + "=" * 50)
 print("BRONZE INGESTION SUMMARY")
 print("=" * 50)

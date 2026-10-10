@@ -1,10 +1,11 @@
+import os
 import psycopg2
 
-NEON_HOST = "ep-tiny-sunset-ah3xbklk-pooler.c-3.us-east-1.aws.neon.tech"
-NEON_PORT = "5432"
-NEON_DB = "neondb"
-NEON_USER = "neondb_owner"
-NEON_PASSWORD = "npg_nf0Bpoz8SKtF"  
+NEON_HOST = os.getenv("NEON_HOST")
+NEON_PORT = os.getenv("NEON_PORT")
+NEON_DB = os.getenv("NEON_DB")
+NEON_USER = os.getenv("NEON_USER")
+NEON_PASSWORD = os.getenv("NEON_PASSWORD") 
 
 conn = psycopg2.connect(
     host=NEON_HOST,

@@ -4,9 +4,9 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 from pyspark.sql.types import DecimalType, IntegerType
 
-# ==========================================
+
 # 1. Spark Session Configuration
-# ==========================================
+
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "admin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "password123")
@@ -40,31 +40,15 @@ print("✅ Spark Session Initialized for Silver Layer Ingestion.")
 
 BRONZE_BASE_PATH = "s3a://hmd-lakehouse/bronze"
 SILVER_BASE_PATH = "s3a://hmd-lakehouse/silver"
-# FIX: this path now matches Requirement 3 exactly, and — unlike the
-# previous version — is actually written to. Each table gets its own
-# subfolder (quarantine/failed_records/<table>/) so schemas never clash,
-# the same way bronze/ and silver/ are already organized per table.
+
 QUARANTINE_BASE_PATH = "s3a://hmd-lakehouse/quarantine/failed_records"
 
-# Collects one entry per table so we can print a full summary at the end
-# and fail the whole run if any table doesn't reconcile.
+
 RECONCILIATION_RESULTS = []
 
 
 def reconcile_counts(table_name, bronze_count, silver_count, quarantine_count):
-    """
-    Requirement 4, Task 5: 'Reconciliation Checks — run row-count ...
-    reconciliation to ensure zero silent data loss.'
 
-    Every row read from Bronze must end up in EXACTLY one place: Silver
-    (valid) or Quarantine (rejected). apply_dq_gateway and
-    check_referential_integrity are both built as exhaustive, mutually
-    exclusive splits (every row satisfies either the pass or the fail
-    condition, never both/neither), so bronze_count should always equal
-    silver_count + quarantine_count exactly. If it doesn't, something in
-    the pipeline is dropping rows silently — this check exists to catch
-    that immediately instead of finding out from a wrong KPI in Power BI.
-    """
     accounted_for = silver_count + quarantine_count
     is_balanced = accounted_for == bronze_count
     status = "✅ MATCH" if is_balanced else "❌ MISMATCH"
@@ -88,32 +72,10 @@ def reconcile_counts(table_name, bronze_count, silver_count, quarantine_count):
     )
     return is_balanced
 
-
-# ==========================================
 # 2. Reusable Data-Quality Gateway
-# ==========================================
+
 def apply_dq_gateway(df, table_name, pk_col, rules):
-    """
-    Central DQ gate applied to every table before it's allowed into Silver.
 
-    Automatically enforces the "Uniqueness" business rule (PK must be
-    non-null AND unique) on top of whatever custom `rules` you pass in:
-      - null_primary_key         -> pk_col is null
-      - duplicate_primary_key    -> pk_col repeats; since Bronze is
-                                     append-only, we always keep the row
-                                     with the latest `_ingested_at` and
-                                     quarantine the older duplicate(s)
-                                     instead of picking one arbitrarily.
-
-    `rules` is a list of (reason_code, failure_condition) tuples.
-    IMPORTANT: failure_condition is True when the row should be
-    quarantined (i.e. it's a FAIL condition, not a pass condition).
-
-    Returns (valid_df, quarantine_df). quarantine_df keeps every original
-    column plus _dq_failure_reason / _quarantined_at / _source_table so
-    every rejection is fully traceable — that's the "error metadata and
-    reason logs" Requirement 3 asks for.
-    """
     null_pk_cond = F.col(pk_col).isNull()
 
     w = Window.partitionBy(pk_col).orderBy(F.col("_ingested_at").desc())
@@ -129,9 +91,7 @@ def apply_dq_gateway(df, table_name, pk_col, rules):
         df = df.withColumn(rc, F.when(cond, F.lit(reason)))
         reason_cols.append(rc)
 
-    # Using array + filter(isNotNull) instead of array_remove(arr, None):
-    # array_remove needs a typed literal to remove, and a bare Python None
-    # doesn't resolve cleanly against a StringType array in Spark SQL.
+
     df = df.withColumn(
         "_dq_failures",
         F.filter(F.array(*[F.col(c) for c in reason_cols]), lambda x: x.isNotNull()),
@@ -208,9 +168,7 @@ def write_quarantine(quarantine_dfs, table_name):
     return q_count
 
 
-# ==========================================
 # 3. Cleaning & Validation Pipeline Functions
-# ==========================================
 
 def process_patients():
     print("\n🔄 Processing Silver: Patients...")
@@ -286,14 +244,8 @@ def process_appointments(valid_patients_df, valid_doctors_df):
     bronze_count = df.count()
     print(f"   📊 Bronze row count: {bronze_count}")
 
-    # FIX: zero-pad single-digit hours ("8:00:00" -> "08:00:00") so the
-    # timestamp parser below doesn't silently return null for morning
-    # appointments that happened to be stored without a leading zero.
     padded_time = F.regexp_replace(F.trim(F.col("appointment_time")), r"^(\d):", r"0$1:")
 
-    # Normalize status to a fixed set of canonical labels up front, so the
-    # domain-enum rule and the is_noshow flag both agree on the same
-    # spelling regardless of how the source data was cased.
     status_lower = F.lower(F.trim(F.col("status")))
     status_clean = (
         F.when(status_lower.isin("no-show", "no show", "noshow"), F.lit("No-Show"))
@@ -315,14 +267,14 @@ def process_appointments(valid_patients_df, valid_doctors_df):
                 F.concat_ws(" ", F.col("appointment_date"), padded_time), "yyyy-MM-dd HH:mm:ss"
             ),
         )
-        # FIX: Requirement 2 explicitly asks for this — it was missing entirely.
+        
         .withColumn("is_noshow", F.col("status") == "No-Show")
     )
 
     rules = [
         ("invalid_status_enum",
          ~F.col("status").isin("Scheduled", "Completed", "Cancelled", "No-Show")),
-        # FIX: Requirement 3 "Date Sanity" rule — was not implemented before.
+    
         ("future_appointment_date",
          F.col("appointment_date").isNull() | (F.col("appointment_date") > F.current_date())),
     ]
@@ -357,15 +309,19 @@ def process_treatments(valid_appointments_df):
         .withColumn("treatment_type", F.initcap(F.trim(F.col("treatment_type"))))
         .withColumn("cost", F.regexp_replace(F.col("cost"), '"', "").cast(DecimalType(10, 2)))
         .withColumn("treatment_date", F.to_timestamp(F.col("treatment_date")))
+        # Highlight values that are zero vs standard positive costs
+        .withColumn(
+            "treatment_cost_status",
+            F.when(F.col("cost") == 0, F.lit("FREE_OR_COVERED"))
+            .when(F.col("cost") > 0, F.lit("STANDARD_COST"))
+            .otherwise(F.lit("UNKNOWN"))
+        )
     )
 
+    # Only quarantine STRICTLY negative (< 0) or Null costs
     rules = [
-        # FIX: rule says "strictly greater than zero (> 0)" — was ">= 0".
-        # Also explicitly checks isNull(), because `null <= 0` evaluates to
-        # null (not True) in Spark, so a bad cast used to sail through the
-        # old `col("cost") >= 0` filter completely undetected.
-        ("invalid_or_non_positive_cost",
-         F.col("cost").isNull() | (F.col("cost") <= 0)),
+        ("invalid_negative_or_null_cost",
+         F.col("cost").isNull() | (F.col("cost") < 0)),
     ]
     valid_df, dq_quarantine = apply_dq_gateway(df_clean, "treatments", "treatment_id", rules)
 
@@ -389,6 +345,14 @@ def process_billing(valid_patients_df, valid_treatments_df):
     bronze_count = df.count()
     print(f"   📊 Bronze row count: {bronze_count}")
 
+    # Checking insurance presence if column exists, else standard check
+    has_insurance_col = "insurance_provider" in df.columns
+
+    if has_insurance_col:
+        insurance_cond = F.col("insurance_provider").isNotNull() & (F.trim(F.col("insurance_provider")) != "")
+    else:
+        insurance_cond = F.lit(False)
+
     df_clean = (
         df.withColumn("bill_id", F.trim(F.col("bill_id")))
         .withColumn("patient_id", F.trim(F.col("patient_id")))
@@ -397,11 +361,20 @@ def process_billing(valid_patients_df, valid_treatments_df):
         .withColumn("payment_method", F.initcap(F.trim(F.col("payment_method"))))
         .withColumn("payment_status", F.initcap(F.trim(F.col("payment_status"))))
         .withColumn("bill_date", F.to_timestamp(F.col("bill_date")))
+        # Highlight zero amounts based on Insurance context
+        .withColumn(
+            "billing_status",
+            F.when((F.col("amount") == 0) & insurance_cond, F.lit("COVERED_BY_INSURANCE"))
+            .when((F.col("amount") == 0) & ~insurance_cond, F.lit("ZERO_AMOUNT_NO_INSURANCE"))
+            .when(F.col("amount") > 0, F.lit("STANDARD_BILL"))
+            .otherwise(F.lit("UNKNOWN"))
+        )
     )
 
+    # Only quarantine STRICTLY negative (< 0) or Null amounts
     rules = [
-        ("invalid_or_non_positive_amount",
-         F.col("amount").isNull() | (F.col("amount") <= 0)),
+        ("invalid_negative_or_null_amount",
+         F.col("amount").isNull() | (F.col("amount") < 0)),
         ("invalid_payment_status_enum",
          ~F.col("payment_status").isin("Paid", "Pending", "Failed", "Refunded")),
     ]
@@ -410,8 +383,6 @@ def process_billing(valid_patients_df, valid_treatments_df):
     valid_df, fk_patient_q = check_referential_integrity(
         valid_df, "patient_id", valid_patients_df, "patient_id", "billing", "orphaned_patient_id"
     )
-    # Requirement 3's explicit rule: billing.treatment_id must match a
-    # real row in hmd.treatments.
     valid_df, fk_treatment_q = check_referential_integrity(
         valid_df, "treatment_id", valid_treatments_df, "treatment_id", "billing", "orphaned_treatment_id"
     )
@@ -425,9 +396,8 @@ def process_billing(valid_patients_df, valid_treatments_df):
     return valid_df
 
 
-# ==========================================
 # 4. Execution Pipeline
-# ==========================================
+
 if __name__ == "__main__":
     try:
         patients_silver = process_patients()
@@ -458,10 +428,7 @@ if __name__ == "__main__":
         print("🎉 SILVER LAYER PIPELINE COMPLETED SUCCESSFULLY!")
         print("=" * 50)
     except Exception as e:
-        # FIX: the original script printed the error but never re-raised
-        # it, so the process exited with code 0 even on total failure.
-        # In Airflow (Requirement 4) that means a broken pipeline would
-        # show up as a green ✅ task. Re-raising makes the failure real.
+
         print(f"\n❌ Pipeline failed with error: {e}")
         raise
     finally:

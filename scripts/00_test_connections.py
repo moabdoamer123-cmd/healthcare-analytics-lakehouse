@@ -1,12 +1,7 @@
 import os
 from pyspark.sql import SparkSession
 
-# ==========================================
 # 1. Configuration Credentials
-# ==========================================
-# Pull from environment variables when available, with the old values as a
-# local fallback so the script still runs today. Once you rotate the Neon
-# password, set these as real env vars (or a .env file) instead of hardcoding.
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "admin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "password123")
@@ -19,14 +14,9 @@ NEON_DB = os.getenv("NEON_DB", "neondb")
 NEON_USER = os.getenv("NEON_USER", "neondb_owner")
 NEON_PASSWORD = os.getenv("NEON_PASSWORD", "npg_nf0Bpoz8SKtF")
 
-# IMPORTANT: the schema in Neon is literally named "HMD" (uppercase, created
-# with quotes), not "hmd". Postgres is case-sensitive for quoted identifiers,
-# so we keep the exact case here and quote it everywhere we reference it in SQL.
 SCHEMA_NAME = "HMD"
 
-# ==========================================
 # 2. Initialize Spark Session with S3A & JDBC
-# ==========================================
 spark = (
     SparkSession.builder.appName("HMD_Test_Connections")
     .config(
@@ -47,14 +37,9 @@ spark = (
 
 print("✅ Spark Session initialized successfully!")
 
-# ==========================================
+
 # 3. Test Connection to Each Table
-# ==========================================
-# Note: no "currentSchema" param and no "?sslmode=require&currentSchema=..."
-# trick anymore. currentSchema sets search_path, but search_path can't
-# reliably resolve a quoted, mixed-case schema name — so instead we quote
-# "HMD" directly inside each query, which always works regardless of
-# search_path.
+
 jdbc_url = f"jdbc:postgresql://{NEON_HOST}:{NEON_PORT}/{NEON_DB}?sslmode=require"
 
 tables = ["patients", "doctors", "appointments", "treatments", "billing"]
@@ -81,14 +66,13 @@ for table in tables:
         results[table] = "OK"
 
     except Exception as e:
-        # Don't let one bad table kill the whole connectivity test — log it
-        # and keep checking the rest, then summarize failures at the end.
+   
         print(f"❌ Failed to load \"{SCHEMA_NAME}\".{table}: {e}")
         results[table] = "FAILED"
 
-# ==========================================
+
 # 4. Summary
-# ==========================================
+
 print("\n" + "=" * 50)
 print("CONNECTION TEST SUMMARY")
 print("=" * 50)

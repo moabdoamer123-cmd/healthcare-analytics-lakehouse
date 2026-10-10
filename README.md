@@ -17,6 +17,7 @@ An end-to-end, production-grade **Healthcare Operations & Financial Analytics Pl
 - [Power BI Dashboard](#power-bi-dashboard)
 - [Getting Started](#getting-started)
 - [Reconciliation & Data Integrity](#reconciliation--data-integrity)
+- [Recent Updates (October 2026)](#recent-updates-october-2026)
 - [Known Assumptions & Limitations](#known-assumptions--limitations)
 
 ---
@@ -36,13 +37,13 @@ Neon PostgreSQL (source)
    SILVER  (MinIO, s3a://hmd-lakehouse/silver/)
         │  star-schema transformation
         ▼
-   GOLD    (MinIO, s3a://hmd-lakehouse/gold/  +  local Parquet export)
+   GOLD    (MinIO  ·  Neon Postgres serving layer  ·  local Parquet export)
         │
         ▼
-   Power BI  (3-page interactive report)
+   Power BI  (3-page report — Python connector reads Gold from Neon)
 ```
 
-Every stage is orchestrated by a single Airflow DAG (`hmd_medallion_etl_pipeline`) with real health checks, automated reconciliation, and a Power BI refresh trigger as the final step.
+Every stage is orchestrated by a single Airflow DAG (`hmd_medallion_etl_pipeline`) running on **CeleryExecutor** with a Redis broker, with real health checks, automated reconciliation, and a Power BI refresh trigger as the final step.
 
 ## Tech Stack
 
@@ -52,9 +53,9 @@ Every stage is orchestrated by a single Airflow DAG (`hmd_medallion_etl_pipeline
 | Object Storage / Lakehouse | MinIO (S3-compatible) |
 | Processing Engine | PySpark (S3A connector) |
 | Storage Format | Parquet |
-| Orchestration | Apache Airflow (LocalExecutor + dedicated Postgres metadata DB) |
+| Orchestration | Apache Airflow — CeleryExecutor + Redis broker, dedicated Postgres metadata DB |
 | Data Quality & Governance | Custom PySpark DQ Gateway |
-| BI & Reporting | Power BI (Get Data → Python / Parquet) |
+| BI & Reporting | Power BI (Python connector → Neon Postgres; Parquet fallback) |
 | Containerization | Docker Compose |
 
 ## Project Structure
@@ -68,9 +69,11 @@ healthcare-analytics-lakehouse/
 │   ├── 01_bronze_ingestion.py            # Neon -> MinIO Bronze (append-only)
 │   ├── 02_silver_ingestion.py            # DQ Gateway: Bronze -> Silver + Quarantine
 │   ├── 03_gold_transformation.py         # Silver -> Gold star schema
-│   └── 04_reconciliation_checks.py       # End-to-end row-count & financial reconciliation
+│   ├── 04_reconciliation_checks.py       # End-to-end row-count & financial reconciliation
+│   └── diagnose_neon.py                  # Neon connectivity diagnostics
 ├── output/                               # Local Parquet export consumed by Power BI
 ├── reports/                              # Power BI Project (.pbip) — semantic model + report
+├── Healthcare_Analytics_Lakehouse_Presentation.pptx   # Project deck (v2 — October 2026)
 ├── docker-compose.yaml
 ├── Dockerfile
 ├── requirements.txt
@@ -104,7 +107,7 @@ Every rejected row is routed to `quarantine/failed_records/<table>/` with a full
 
 ## Orchestration
 
-The Airflow DAG runs six sequential tasks, each gating the next on success:
+The Airflow DAG runs six sequential tasks (executed by Celery workers via Redis), each gating the next on success:
 
 1. **`pre_run_check`** — live connectivity check against Neon, MinIO health endpoint, and target bucket
 2. **`pyspark_extraction`** — Bronze ingestion
@@ -117,7 +120,7 @@ A failure at any stage blocks every task downstream — a broken pipeline never 
 
 ## Power BI Dashboard
 
-Three interactive pages, built on the Gold star schema:
+Three interactive pages, built on the Gold star schema and redesigned in October 2026 — white branded header with a live *Data last refreshed* stamp, a dedicated **Filters** panel (Hospital Branch, Payment Method, Insurance Provider, Treatment Type), KPI cards with visible labels and `$K` data labels, plus Refresh / Clear Filters controls:
 
 ### Page 1 — Executive Command Center Overview
 ![Executive Command Center](assets/dashboard_page1_executive.png)
@@ -138,7 +141,7 @@ Copy the example and fill in your own credentials — never commit real secrets:
 cp .env.example .env
 ```
 
-Required variables: `NEON_HOST/PORT/DB/USER/PASSWORD`, `MINIO_ENDPOINT/ACCESS_KEY/SECRET_KEY`, `AIRFLOW_FERNET_KEY` (generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`), and optionally `POWERBI_TENANT_ID/CLIENT_ID/CLIENT_SECRET/DATASET_ID` for the automated refresh step.
+Required variables: `NEON_HOST/PORT/DB/USER/PASSWORD`, `MINIO_ENDPOINT/ACCESS_KEY/SECRET_KEY`, `POSTGRES_USER/PASSWORD/DB` (Airflow metadata), `AIRFLOW_FERNET_KEY` (generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`), and optionally `POWERBI_TENANT_ID/CLIENT_ID/CLIENT_SECRET/DATASET_ID` for the automated refresh step plus `SMTP_*` for Airflow email alerts.
 
 **2. Launch the stack**
 
@@ -153,7 +156,7 @@ Open the Airflow UI at `http://localhost:8082` (default login `admin` / `admin`)
 
 **4. Connect Power BI**
 
-Point Power BI Desktop's Python script connector (or the Parquet connector) at the `./output/` folder produced by the Gold layer. See `reports/` for the ready-to-open Power BI Project.
+The semantic model's Python connector reads the Gold star schema directly from Neon Postgres (`public` schema) using the credentials in `.env` — no hard-coded local paths. The `./output/` Parquet files are still exported by the Gold layer as a fallback for ad-hoc analysis. See `reports/` for the ready-to-open Power BI Project (`Healthcare_Operational_Efficiency.pbip`).
 
 ## Reconciliation & Data Integrity
 
@@ -165,8 +168,18 @@ Point Power BI Desktop's Python script connector (or the Parquet connector) at t
 
 Any mismatch fails the Airflow task immediately, rather than allowing a silently incomplete dataset to reach the dashboard.
 
+## Recent Updates (October 2026)
+
+- **Power BI report redesign** — white branded header on all three pages, a dedicated **Filters** panel, KPI cards with visible labels and `$K` data labels, and Refresh / Clear Filters controls.
+- **Live "Data last refreshed" stamp** — a new `'Data Last Refreshed'` DAX measure (`FORMAT(NOW(), ...)`) replaces the static timestamp and updates automatically on every model refresh.
+- **Gold serving layer in Neon** — `03_gold_transformation.py` now writes the star schema back to Neon Postgres (parallel `ThreadPoolExecutor` writes) in addition to MinIO and the local Parquet export; the Power BI semantic model reads `public.*` tables through the Python connector instead of hard-coded local file paths.
+- **Airflow on Celery + Redis** — `docker-compose.yaml` moved from LocalExecutor to CeleryExecutor with a Redis broker, a dedicated Postgres metadata DB, SMTP alert variables, and `GOLD_LOCAL_EXPORT_DIR=/opt/airflow/output` volume-mounted back to the host.
+- **New project deck** — the presentation was regenerated to match this state: [Healthcare_Analytics_Lakehouse_Presentation.pptx](Healthcare_Analytics_Lakehouse_Presentation.pptx) (replaces the pre-update deck).
+
+---
+
 ## Known Assumptions & Limitations
 
 - **Gross Margin shows $0.00**: the source dataset's `billing.amount` and `treatments.cost` are identical for every transaction, so billed revenue exactly equals treatment cost. This is a property of the sample data, not a modeling error.
 - **"Capacity Utilization"** is reported as actual doctor workload (appointments, completions, cancellations, no-shows) rather than a percentage against a fixed capacity, since the source data has no explicit daily-capacity target per doctor.
-- **Power BI connectivity**: Power BI Desktop has no native connector for MinIO or generic S3-compatible storage. The Gold layer is therefore written twice — once to MinIO (satisfying the lakehouse architecture requirement) and once as local Parquet files consumed directly by Power BI.
+- **Power BI connectivity**: Power BI Desktop has no native connector for MinIO or generic S3-compatible storage. The Gold layer is therefore written three ways — to MinIO (satisfying the lakehouse architecture requirement), back to Neon Postgres (the serving layer Power BI reads through the Python connector), and as local Parquet files in `./output/` for ad-hoc analysis.
