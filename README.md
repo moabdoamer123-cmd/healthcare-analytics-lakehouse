@@ -174,7 +174,7 @@ Any mismatch fails the Airflow task immediately, rather than allowing a silently
 - **Live "Data last refreshed" stamp** — a new `'Data Last Refreshed'` DAX measure (`FORMAT(NOW(), ...)`) replaces the static timestamp and updates automatically on every model refresh.
 - **Gold serving layer in Neon** — `03_gold_transformation.py` now writes the star schema back to Neon Postgres (parallel `ThreadPoolExecutor` writes) in addition to MinIO and the local Parquet export; the Power BI semantic model reads `public.*` tables through the Python connector instead of hard-coded local file paths.
 - **Airflow on Celery + Redis** — `docker-compose.yaml` moved from LocalExecutor to CeleryExecutor with a Redis broker, a dedicated Postgres metadata DB, SMTP alert variables, and `GOLD_LOCAL_EXPORT_DIR=/opt/airflow/output` volume-mounted back to the host.
-- **New project deck** — the presentation was regenerated to match this state: [Healthcare_Analytics_Lakehouse_Presentation.pptx](Healthcare_Analytics_Lakehouse_Presentation.pptx) (replaces the pre-update deck).
+- **New project deck** — the presentation was regenerated to match this state (replaces the pre-update deck). [Open / download the latest deck (direct link, bypasses the browser preview cache)](https://raw.githubusercontent.com/moabdoamer123-cmd/healthcare-analytics-lakehouse/5763f4ac97b5c3f6909b3956d9338aafea2d3dd6/Healthcare_Analytics_Lakehouse_Presentation.pptx).
 - **Fresh dashboard screenshots** — all three page screenshots in this README (and in the deck) were re-captured from the redesigned report on October 10, 2026.
 
 ---
