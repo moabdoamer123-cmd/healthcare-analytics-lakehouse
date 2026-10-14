@@ -175,6 +175,7 @@ Any mismatch fails the Airflow task immediately, rather than allowing a silently
 - **Gold serving layer in Neon** — `03_gold_transformation.py` now writes the star schema back to Neon Postgres (parallel `ThreadPoolExecutor` writes) in addition to MinIO and the local Parquet export; the Power BI semantic model reads `public.*` tables through the Python connector instead of hard-coded local file paths.
 - **Airflow on Celery + Redis** — `docker-compose.yaml` moved from LocalExecutor to CeleryExecutor with a Redis broker, a dedicated Postgres metadata DB, SMTP alert variables, and `GOLD_LOCAL_EXPORT_DIR=/opt/airflow/output` volume-mounted back to the host.
 - **New project deck** — the presentation was regenerated to match this state: [Healthcare_Analytics_Lakehouse_Presentation.pptx](Healthcare_Analytics_Lakehouse_Presentation.pptx) (replaces the pre-update deck).
+- **Fresh dashboard screenshots** — all three page screenshots in this README (and in the deck) were re-captured from the redesigned report on October 10, 2026.
 
 ---
 
