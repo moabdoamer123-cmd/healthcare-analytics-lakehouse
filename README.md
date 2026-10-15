@@ -4,6 +4,8 @@ An end-to-end, production-grade **Healthcare Operations & Financial Analytics Pl
 
 ![Airflow DAG — all tasks succeeding](assets/airflow_dag_success.png)
 
+📊 [Project presentation](https://github.com/moabdoamer123-cmd/healthcare-analytics-lakehouse/raw/main/Healthcare_Analytics_Lakehouse_Presentation.pptx)
+
 ---
 
 ## Table of Contents
@@ -17,7 +19,6 @@ An end-to-end, production-grade **Healthcare Operations & Financial Analytics Pl
 - [Power BI Dashboard](#power-bi-dashboard)
 - [Getting Started](#getting-started)
 - [Reconciliation & Data Integrity](#reconciliation--data-integrity)
-- [Recent Updates (October 2026)](#recent-updates-october-2026)
 - [Known Assumptions & Limitations](#known-assumptions--limitations)
 
 ---
@@ -73,7 +74,7 @@ healthcare-analytics-lakehouse/
 │   └── diagnose_neon.py                  # Neon connectivity diagnostics
 ├── output/                               # Local Parquet export consumed by Power BI
 ├── reports/                              # Power BI Project (.pbip) — semantic model + report
-├── Healthcare_Analytics_Lakehouse_Presentation.pptx   # Project deck (v2 — October 2026)
+├── Healthcare_Analytics_Lakehouse_Presentation.pptx   # Project deck 
 ├── docker-compose.yaml
 ├── Dockerfile
 ├── requirements.txt
@@ -120,7 +121,7 @@ A failure at any stage blocks every task downstream — a broken pipeline never 
 
 ## Power BI Dashboard
 
-Three interactive pages, built on the Gold star schema and redesigned in October 2026 — white branded header with a live *Data last refreshed* stamp, a dedicated **Filters** panel (Hospital Branch, Payment Method, Insurance Provider, Treatment Type), KPI cards with visible labels and `$K` data labels, plus Refresh / Clear Filters controls:
+Three interactive pages, built on the Gold star schema — branded header with a live *Data last refreshed* stamp, a dedicated **Filters** panel (Hospital Branch, Payment Method, Insurance Provider, Treatment Type), KPI cards with visible labels and `$K` data labels, plus Refresh / Clear Filters controls:
 
 ### Page 1 — Executive Command Center Overview
 ![Executive Command Center](assets/dashboard_page1_executive.png)
@@ -168,14 +169,6 @@ The semantic model's Python connector reads the Gold star schema directly from N
 
 Any mismatch fails the Airflow task immediately, rather than allowing a silently incomplete dataset to reach the dashboard.
 
-## Recent Updates (October 2026)
-
-- **Power BI report redesign** — white branded header on all three pages, a dedicated **Filters** panel, KPI cards with visible labels and `$K` data labels, and Refresh / Clear Filters controls.
-- **Live "Data last refreshed" stamp** — a new `'Data Last Refreshed'` DAX measure (`FORMAT(NOW(), ...)`) replaces the static timestamp and updates automatically on every model refresh.
-- **Gold serving layer in Neon** — `03_gold_transformation.py` now writes the star schema back to Neon Postgres (parallel `ThreadPoolExecutor` writes) in addition to MinIO and the local Parquet export; the Power BI semantic model reads `public.*` tables through the Python connector instead of hard-coded local file paths.
-- **Airflow on Celery + Redis** — `docker-compose.yaml` moved from LocalExecutor to CeleryExecutor with a Redis broker, a dedicated Postgres metadata DB, SMTP alert variables, and `GOLD_LOCAL_EXPORT_DIR=/opt/airflow/output` volume-mounted back to the host.
-- **New project deck** — the presentation was regenerated to match this state (replaces the pre-update deck). [Open / download the latest deck (direct link, bypasses the browser preview cache)](https://raw.githubusercontent.com/moabdoamer123-cmd/healthcare-analytics-lakehouse/5763f4ac97b5c3f6909b3956d9338aafea2d3dd6/Healthcare_Analytics_Lakehouse_Presentation.pptx).
-- **Fresh dashboard screenshots** — all three page screenshots in this README (and in the deck) were re-captured from the redesigned report on October 10, 2026.
 
 ---
 
