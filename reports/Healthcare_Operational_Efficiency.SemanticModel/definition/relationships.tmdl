@@ -1,0 +1,53 @@
+relationship 533b7818-1fe0-467f-8eab-64c5afc6eec1
+	joinOnDateBehavior: datePartOnly
+	fromColumn: dim_date.date_key
+	toColumn: LocalDateTable_40976800-8d97-415f-9e37-f2c668959669.Date
+
+relationship 2b6516d5-8773-4ff2-b971-64a84a440e2d
+	joinOnDateBehavior: datePartOnly
+	fromColumn: dim_patients.date_of_birth
+	toColumn: LocalDateTable_4c256c9a-026c-4c52-810b-c38946956b26.Date
+
+relationship 78a1cb42-f664-4265-a6dd-8e915e8ad2b9
+	joinOnDateBehavior: datePartOnly
+	fromColumn: dim_patients.registration_date
+	toColumn: LocalDateTable_60876d2c-8970-4f9b-9395-a7a87aceeb46.Date
+
+relationship f2ec4eb9-01c9-49e4-aa80-d58b73af6157
+	joinOnDateBehavior: datePartOnly
+	fromColumn: dim_treatments.treatment_date
+	toColumn: LocalDateTable_c7e4cd3e-0b5a-462a-8d80-e120123e9741.Date
+
+relationship AutoDetected_fd89b41a-5e0a-4dc4-a8a5-83cc6c6d7a6e
+	fromColumn: fact_appointments.doctor_id
+	toColumn: dim_doctors.doctor_id
+
+relationship AutoDetected_6567f1d6-0335-4459-aa80-28f47b5c49f2
+	fromColumn: fact_billing_treatments.doctor_id
+	toColumn: dim_doctors.doctor_id
+
+relationship AutoDetected_47e876fd-3605-45cd-b8cf-249851b7b64c
+	fromColumn: fact_appointments.patient_id
+	toColumn: dim_patients.patient_id
+
+relationship AutoDetected_4ab8c3a9-9572-4be7-a21c-c911927b2d28
+	fromColumn: fact_billing_treatments.patient_id
+	toColumn: dim_patients.patient_id
+
+relationship 3123887e-c1ad-e06e-59c6-20fb8de9a88b
+	fromColumn: fact_billing_treatments.date_key
+	toColumn: dim_date.date_key
+
+relationship d2c8b97d-20c8-b401-cca1-58bacb3c2288
+	fromColumn: fact_appointments.date_key
+	toColumn: dim_date.date_key
+
+relationship b9352e0b-908a-fdb6-d2bb-11d94499a244
+	fromColumn: fact_billing_treatments.treatment_id
+	toColumn: dim_treatments.treatment_id
+
+relationship ee9c7d79-1679-5371-33ae-2069f2de5a3d
+	crossFilteringBehavior: bothDirections
+	fromColumn: fact_appointments.appointment_id
+	toColumn: dim_treatments.appointment_id
+

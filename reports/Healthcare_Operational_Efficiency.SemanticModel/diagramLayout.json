@@ -1,0 +1,113 @@
+{
+  "version": "1.1.0",
+  "diagrams": [
+    {
+      "ordinal": 0,
+      "scrollPosition": {
+        "x": 0,
+        "y": 46.226126154199832
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 884.4448714412033,
+            "y": 341.54441158521718
+          },
+          "nodeIndex": "dim_date",
+          "nodeLineageTag": "a6d17480-8ff0-4633-b2a5-a44641d340af",
+          "size": {
+            "height": 296,
+            "width": 234
+          },
+          "zIndex": 6
+        },
+        {
+          "location": {
+            "x": 50,
+            "y": 303.74600693137967
+          },
+          "nodeIndex": "dim_doctors",
+          "nodeLineageTag": "bb0c474b-b5af-4307-b496-a5a40d8f960b",
+          "size": {
+            "height": 296,
+            "width": 234
+          },
+          "zIndex": 1
+        },
+        {
+          "location": {
+            "x": 186.09499346376163,
+            "y": -50
+          },
+          "nodeIndex": "dim_patients",
+          "nodeLineageTag": "bafb91fd-8eed-4247-ab91-862b341e9449",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 2
+        },
+        {
+          "location": {
+            "x": 650.4448714412033,
+            "y": 29.085822554378524
+          },
+          "nodeIndex": "dim_treatments",
+          "nodeLineageTag": "1ab811b1-cb39-442f-bfeb-10462868de6d",
+          "size": {
+            "height": 224,
+            "width": 234
+          },
+          "zIndex": 3
+        },
+        {
+          "location": {
+            "x": 227.02026384367275,
+            "y": 657.08882317043424
+          },
+          "nodeIndex": "fact_appointments",
+          "nodeLineageTag": "a4c81b54-3930-4cfa-80da-aafc93b3fcd3",
+          "size": {
+            "height": 272,
+            "width": 234
+          },
+          "zIndex": 4
+        },
+        {
+          "location": {
+            "x": 434.47696834513511,
+            "y": 303.64050633785507
+          },
+          "nodeIndex": "fact_billing_treatments",
+          "nodeLineageTag": "16de14ed-7650-49a7-82ba-c92315f8c73e",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 5
+        },
+        {
+          "location": {
+            "x": 1118.4448714412033,
+            "y": 437.54441158521712
+          },
+          "nodeIndex": "_Measures",
+          "nodeLineageTag": "debcf92a-6cf7-4331-9255-63633cd5c4d1",
+          "size": {
+            "height": 104,
+            "width": 234
+          },
+          "zIndex": 0
+        }
+      ],
+      "name": "All tables",
+      "zoomValue": 70.955543900968948,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
+    }
+  ],
+  "selectedDiagram": "All tables",
+  "defaultDiagram": "All tables"
+}

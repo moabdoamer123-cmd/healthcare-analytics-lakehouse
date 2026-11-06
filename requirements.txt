@@ -1,0 +1,7 @@
+pyspark==3.5.0
+psycopg2-binary
+minio
+requests
+python-dotenv
+
+iceberg-spark-runtime-3.5_2.12==1.4.0
